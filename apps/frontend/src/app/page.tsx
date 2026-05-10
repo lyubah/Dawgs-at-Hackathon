@@ -18,6 +18,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AnimatePresence } from "motion/react";
 import {
   CopilotChatConfigurationProvider,
   useAgent,
@@ -269,7 +270,16 @@ function HearthInner() {
         </main>
       )}
 
-      <HearthChatPanel dimmed={idle} />
+      {/*
+        Welcome owns the full viewport — the centered input is the single
+        focal point, nothing competes from the right rail. After the user
+        submits a goal the chat panel slides in from the right.
+      */}
+      <AnimatePresence>
+        {stage !== "welcome" && (
+          <HearthChatPanel key="hearth-chat" dimmed={idle} />
+        )}
+      </AnimatePresence>
     </>
   );
 }

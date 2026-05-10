@@ -135,6 +135,59 @@ html {
 
 /*
   ─────────────────────────────────────────────────────────────────────
+  Hearth chat panel — dark theme override
+  ─────────────────────────────────────────────────────────────────────
+  CopilotKit v2's default chat surface is light; against the warm-amber-on-
+  velvet-navy hearth aesthetic that reads as a stray Slack window. Re-skin
+  the panel using CopilotKit's CSS custom properties + targeted overrides
+  scoped to .hearth-chat-panel so we don't bleed into other CopilotKit
+  surfaces (e.g. the showcase routes).
+*/
+.hearth-chat-panel {
+  --copilot-kit-primary-color: #e7c887;
+  --copilot-kit-contrast-color: #2a210f;
+  --copilot-kit-background-color: rgba(11, 13, 24, 0);
+  --copilot-kit-secondary-color: rgba(231, 200, 135, 0.08);
+  --copilot-kit-secondary-contrast-color: #f5ebcd;
+  --copilot-kit-separator-color: rgba(231, 200, 135, 0.12);
+  --copilot-kit-muted-color: rgba(245, 235, 205, 0.6);
+  color: #f5ebcd;
+}
+
+.hearth-chat-panel .copilotKitChat,
+.hearth-chat-panel .copilotKitMessages,
+.hearth-chat-panel [class*="copilotKit"][class*="Chat"],
+.hearth-chat-panel [class*="copilotKit"][class*="Window"],
+.hearth-chat-panel [class*="copilotKit"][class*="Container"] {
+  background: transparent !important;
+  color: inherit;
+}
+
+.hearth-chat-panel input,
+.hearth-chat-panel textarea {
+  background: rgba(245, 235, 205, 0.04);
+  color: #f5ebcd;
+  border-color: rgba(231, 200, 135, 0.18);
+}
+
+.hearth-chat-panel input::placeholder,
+.hearth-chat-panel textarea::placeholder {
+  color: rgba(245, 235, 205, 0.45);
+}
+
+.hearth-chat-panel [class*="copilotKit"][class*="UserMessage"] {
+  background: linear-gradient(180deg, #f5d895 0%, #e7c887 50%, #b6873a 100%) !important;
+  color: #2a210f !important;
+}
+
+.hearth-chat-panel [class*="copilotKit"][class*="AssistantMessage"] {
+  background: rgba(245, 235, 205, 0.06) !important;
+  color: #f5ebcd !important;
+  border: 1px solid rgba(231, 200, 135, 0.12);
+}
+
+/*
+  ─────────────────────────────────────────────────────────────────────
   Threads-drawer module CSS hooks
   ─────────────────────────────────────────────────────────────────────
   The threads-drawer ships its own CSS module (threads-drawer.module.css)
