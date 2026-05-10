@@ -1,10 +1,13 @@
 import { serve } from "@hono/node-server";
+import { Hono } from "hono";
 import {
   CopilotRuntime,
   CopilotKitIntelligence,
   createCopilotEndpoint,
 } from "@copilotkit/runtime/v2";
 import { LangGraphAgent } from "@copilotkit/runtime/langgraph";
+
+import { lyriaRoute } from "./lyria";
 
 const intelligence = new CopilotKitIntelligence({
   apiKey:
@@ -45,6 +48,7 @@ const app = createCopilotEndpoint({
     },
   }),
 });
+
 
 // Rewrite known 5xx error bodies into structured `{ error, hint, command }`
 // payloads the UI can render as actionable toasts. Conservative matching —
@@ -102,8 +106,15 @@ app.use("*", async (c, next) => {
   }
 });
 
+// Compose CopilotKit handler + Hearth routes onto a single root Hono app.
+// CopilotKit's endpoint is a typed catch-all under its basePath, so we mount
+// it as a sub-app rather than try to register sibling routes on it directly.
+const root = new Hono();
+root.route("/", lyriaRoute);
+root.route("/", app);
+
 const port = Number(process.env.PORT) || 4000;
 
-serve({ fetch: app.fetch, port }, () => {
+serve({ fetch: root.fetch, port }, () => {
   console.log(`BFF ready at http://localhost:${port}`);
 });

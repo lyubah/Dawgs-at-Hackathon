@@ -27,6 +27,9 @@ const KIND_ACCENT: Record<TraceEvent["kind"], string> = {
   "tool.addLever": "bg-emerald-400",
   "tool.swapScene": "bg-violet-400",
   "tool.regenerateMoodProfile": "bg-rose-400",
+  "music.regen.start": "bg-fuchsia-400",
+  "music.regen.applied": "bg-fuchsia-500",
+  "music.regen.failed": "bg-stone-500",
 };
 
 function formatRelative(now: number, ts: number): string {

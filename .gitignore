@@ -17,6 +17,9 @@ postgres-data
 redis-data
 .DS_Store
 
+# Lyria music-gen on-disk cache (apps/bff/.cache/lyria/<sha256>.mp3)
+.cache/
+
 # LangGraph dev runtime state (per-session checkpoint cache)
 apps/agent/.langgraph_api/
 

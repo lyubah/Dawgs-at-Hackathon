@@ -35,6 +35,16 @@ export class AudioEngine {
   private sfx = new Map<SfxId, Tone.Player>();
   private gains = new Map<ClipId, Tone.Gain>();
 
+  /**
+   * Generative bed — populated by loadGenerative() at runtime with a fresh
+   * Lyria clip. When active, it replaces the prebaked focus_* beds so the
+   * agent's regenerated music actually plays instead of just rebalancing
+   * volumes on the same prebaked tracks.
+   */
+  private generativePlayer: Tone.Player | null = null;
+  private generativeGain: Tone.Gain | null = null;
+  private generativeActive = false;
+
   async init(): Promise<void> {
     if (this.initialized) return;
     await Tone.start();
@@ -83,9 +93,15 @@ export class AudioEngine {
     const brownNoise = clamp01(profile.music.aux.brownNoise);
     const windDownMode = profile.goal.kind === "wind_down";
 
-    const focusLow = windDownMode ? 0 : triangleAt(intensity, 0.08);
-    const focusMid = windDownMode ? 0 : triangleAt(intensity, 0.5);
-    const focusHigh = windDownMode ? 0 : triangleAt(intensity, 0.92);
+    // When the generative bed is loaded, it owns the music slot — silence
+    // the prebaked focus_* beds so we hear the freshly-generated track and
+    // not a stack of both.
+    const focusLow =
+      this.generativeActive || windDownMode ? 0 : triangleAt(intensity, 0.08);
+    const focusMid =
+      this.generativeActive || windDownMode ? 0 : triangleAt(intensity, 0.5);
+    const focusHigh =
+      this.generativeActive || windDownMode ? 0 : triangleAt(intensity, 0.92);
     const windDown = windDownMode ? 1 : 0;
 
     this.ramp("focusLow", focusLow, 0.25);
@@ -94,6 +110,72 @@ export class AudioEngine {
     this.ramp("windDown", windDown, windDownMode ? 2.0 : 1.2);
     this.ramp("rain", rain, 0.25);
     this.ramp("brownNoise", brownNoise, 0.25);
+  }
+
+  /**
+   * Replace the music bed with a freshly-generated clip from the BFF.
+   *
+   * The cross-fade is 3 seconds — long enough to hide the seam between the
+   * prebaked bed (or the previous generative clip) and the new one. If
+   * fetch or decode fails, the prebaked focus_* beds stay active (no audio
+   * dropout for the demo).
+   */
+  async loadGenerative(url: string): Promise<void> {
+    if (!this.initialized) {
+      throw new Error("AudioEngine.loadGenerative: call init() first");
+    }
+
+    // Build the new player + gain chain BEFORE swapping so we can fail
+    // closed (no audio gap) if the load throws.
+    const nextPlayer = new Tone.Player({ loop: true, autostart: false });
+    const nextGain = new Tone.Gain(0);
+    nextPlayer.connect(nextGain);
+    nextGain.toDestination();
+
+    try {
+      await nextPlayer.load(url);
+    } catch (error) {
+      console.warn("[AudioEngine] generative load failed:", error);
+      nextPlayer.dispose();
+      nextGain.dispose();
+      throw error;
+    }
+
+    // Cross-fade: ramp prebaked focus_* down, ramp new bed up. Both sides
+    // of the swap take 3s — overlap is intentional.
+    const FADE_S = 3.0;
+    this.generativeActive = true;
+    this.ramp("focusLow", 0, FADE_S);
+    this.ramp("focusMid", 0, FADE_S);
+    this.ramp("focusHigh", 0, FADE_S);
+
+    // Hand off the player slot — start the new one, ramp it up, then
+    // dispose the old after the fade completes so we don't cut its tail.
+    const prevPlayer = this.generativePlayer;
+    const prevGain = this.generativeGain;
+
+    this.generativePlayer = nextPlayer;
+    this.generativeGain = nextGain;
+    try {
+      nextPlayer.start();
+    } catch (error) {
+      console.warn("[AudioEngine] generative start failed:", error);
+    }
+    nextGain.gain.rampTo(1, FADE_S);
+
+    if (prevPlayer && prevGain) {
+      prevGain.gain.rampTo(0, FADE_S);
+      // Schedule disposal slightly after the fade so the tail doesn't click.
+      setTimeout(() => {
+        try {
+          prevPlayer.stop();
+        } catch {
+          // ignore — disposal below cleans up
+        }
+        prevPlayer.dispose();
+        prevGain.dispose();
+      }, (FADE_S + 0.1) * 1000);
+    }
   }
 
   playSfx(type: SfxId): void {
@@ -114,6 +196,11 @@ export class AudioEngine {
     this.clips.clear();
     this.sfx.clear();
     this.gains.clear();
+    if (this.generativePlayer) this.generativePlayer.dispose();
+    if (this.generativeGain) this.generativeGain.dispose();
+    this.generativePlayer = null;
+    this.generativeGain = null;
+    this.generativeActive = false;
     this.initialized = false;
     this.started = false;
   }

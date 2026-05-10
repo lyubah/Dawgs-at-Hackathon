@@ -3,48 +3,47 @@
 /**
  * F-12 — Hearth chat panel.
  *
- * Wraps CopilotKit v2's CopilotPopup so we get the spec'd "collapsed pill at
- * bottom of canvas, expand on click into a chat panel" behavior. The Sidebar
- * component (right-edge slide-out) is the wrong shape for F-12; Popup is a
- * bottom-pill toggle plus a floating panel and matches by construction.
+ * Persistent right-rail chat surface using CopilotKit's headless
+ * <CopilotChat />. Always visible across all stages (welcome, transition,
+ * room) so the user can keep nudging the Mood Architect at any moment —
+ * no popup, no auto-close. The agent's frontend tools (updateLeverValue,
+ * addLever, swapScene, regenerateMoodProfile) mean a sentence in chat
+ * can drive the same store mutations a lever drag would, and the
+ * music-regen watcher picks up the resulting promptForGen change.
  *
- * This file owns the Hearth chrome (label text, dimensions, idle dim). The
- * agent wiring (provider, agentId, threadId) stays in app/page.tsx so it
- * remains symmetric with goal submission and regen triggers.
+ * Layout:
+ *  - Pinned to viewport right, full-height, fixed width.
+ *  - Stage content (welcome / room) sits left of it. Welcome and
+ *    transition are full-screen overlays drawn under the chat panel;
+ *    the chat floats above them with its own background so input is
+ *    reachable even before a goal is submitted.
  *
- * Dimming on idle (F-15) lowers the toggle button + open panel opacity but
- * keeps pointer events live — the user can still click into the chat to
- * re-engage; that click is itself an activity event and unfades the rest
- * of the chrome.
+ * Idle behavior (F-15) lowers opacity but keeps pointer-events live so a
+ * click into the chat re-engages the rest of the chrome.
  */
-import { CopilotPopup } from "@copilotkit/react-core/v2";
+import { CopilotChat } from "@copilotkit/react-core/v2";
 
-const PANEL_WIDTH = 420;
-const PANEL_HEIGHT = "min(560px, 60vh)";
+const PANEL_WIDTH_PX = 400;
 
 const LABELS = {
   chatTitle: "Mood Architect",
   chatInputPlaceholder: "Tell the room what to do…",
   chatWelcomeTitle: "What kind of attention does this need?",
   chatWelcomeMessage:
-    "Type how you'd describe the work. The Mood Architect will pick the levers.",
+    "Type how you'd describe the work, then keep nudging — 'less rain', 'more energy', 'wind me down'. The Mood Architect routes your words through frontend tools that move levers, swap scenes, and regenerate music.",
 };
 
 export function HearthChatPanel({ dimmed = false }: { dimmed?: boolean }) {
   return (
-    <div
-      className={`transition-opacity duration-700 ${
-        dimmed ? "opacity-30 hover:opacity-100 focus-within:opacity-100" : "opacity-100"
+    <aside
+      style={{ width: PANEL_WIDTH_PX }}
+      className={`fixed top-0 right-0 z-40 flex h-screen flex-col border-l border-white/10 bg-[#0b0d18]/85 backdrop-blur-xl transition-opacity duration-700 ${
+        dimmed
+          ? "opacity-30 hover:opacity-100 focus-within:opacity-100"
+          : "opacity-100"
       }`}
     >
-      <CopilotPopup
-        defaultOpen={false}
-        clickOutsideToClose
-        width={PANEL_WIDTH}
-        height={PANEL_HEIGHT}
-        labels={LABELS}
-        input={{ disclaimer: () => null, className: "pb-6" }}
-      />
-    </div>
+      <CopilotChat labels={LABELS} className="h-full" />
+    </aside>
   );
 }

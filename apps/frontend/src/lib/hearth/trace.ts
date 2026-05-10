@@ -24,7 +24,10 @@ export type TraceKind =
   | "tool.updateLeverValue"
   | "tool.addLever"
   | "tool.swapScene"
-  | "tool.regenerateMoodProfile";
+  | "tool.regenerateMoodProfile"
+  | "music.regen.start"
+  | "music.regen.applied"
+  | "music.regen.failed";
 
 export type TraceEvent = {
   id: string;
@@ -78,4 +81,7 @@ export const TRACE_KIND_LABEL: Record<TraceKind, string> = {
   "tool.addLever": "Tool: addLever",
   "tool.swapScene": "Tool: swapScene",
   "tool.regenerateMoodProfile": "Tool: regenerateMoodProfile",
+  "music.regen.start": "Music regen → Lyria",
+  "music.regen.applied": "Music regen applied",
+  "music.regen.failed": "Music regen failed",
 };

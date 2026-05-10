@@ -37,6 +37,7 @@ import {
   type LeverValueMap,
 } from "@/components/hearth/lever-card/LeverCard";
 import { AudioEngine } from "@/lib/hearth/audio/AudioEngine";
+import { useMusicRegenWatcher } from "@/lib/hearth/genui/musicRegen";
 import { useIdle } from "@/lib/hearth/idle";
 import { useHearthStore } from "@/lib/hearth/store";
 import type { MoodProfile, Lever } from "@/lib/hearth/schema";
@@ -101,6 +102,11 @@ function HearthInner() {
     if (!audioReady) return;
     audioRef.current?.applyProfile(profile);
   }, [audioReady, profile]);
+
+  // Live music regen: when the agent rewrites profile.music.promptForGen
+  // (welcome classify, F-08 mic-drop, or a chat-driven nudge), this hook
+  // calls the BFF Lyria proxy and crossfades the fresh clip into AudioEngine.
+  useMusicRegenWatcher(audioRef, audioReady);
 
   const submitGoal = useCallback(
     (text: string) => {
