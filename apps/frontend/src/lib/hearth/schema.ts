@@ -103,6 +103,18 @@ export const Music = z.object({
   aux: MusicAux,
   /** Lyria prompt. Used only when USE_LYRIA=true (stretch F-16). */
   promptForGen: z.string(),
+  /**
+   * The agent's first decision — the genre/style label that organizes
+   * every other choice (lever palette, prompt vocabulary, scene leaning).
+   * Free-form: common values are 'lofi', 'rock', 'edm', 'jazz', 'ambient',
+   * 'classical', 'idm', 'downtempo', 'soul', 'gospel'. The agent may
+   * invent a label ('lofi-house', 'doom-jazz') if it fits better.
+   *
+   * Two regen channels read this:
+   *  - regenerate_mood_profile may shift it (full reconsideration).
+   *  - refresh_music must keep it (only varies the prompt).
+   */
+  genre: z.string().default("ambient"),
 });
 export type Music = z.infer<typeof Music>;
 
@@ -149,5 +161,13 @@ export const MoodProfile = z.object({
   visual: Visual,
   levers: z.array(Lever),
   evolution: Evolution,
+  /**
+   * Open-ended bag for agent-invented controls. A lever may set
+   * `bindTo: "params.<anything>"` and the store auto-creates the path.
+   * The agent reads this back on the next regen turn to incorporate the
+   * user's pushed values into the new prompt — that's how arbitrary
+   * lever drags become musical rather than disconnected.
+   */
+  params: z.record(z.string(), z.union([z.number(), z.string(), z.boolean()])).default({}),
 });
 export type MoodProfile = z.infer<typeof MoodProfile>;

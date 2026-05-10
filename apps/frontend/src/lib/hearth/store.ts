@@ -61,7 +61,14 @@ export const useHearthStore = create<HearthState>((set, get) => ({
 
 /**
  * Immutable set at dot-path. Returns a new object with cloned spine so
- * Zustand subscribers re-render. Invalid paths are no-ops (logged in dev).
+ * Zustand subscribers re-render.
+ *
+ * Auto-creates intermediate objects when missing, so the agent can invent
+ * lever bindings under `params.<anything>` (or any other namespace) without
+ * a schema patch. The trade-off: a typo in an existing path no longer
+ * warns — `music.bom` (typo for `bpm`) silently creates `music.bom`.
+ * Acceptable for Hearth: we trust the agent and the explicit lever schema
+ * over typed handcoded paths.
  */
 function setPath<T extends object>(obj: T, path: string, value: unknown): T {
   const keys = path.split(".");
@@ -74,12 +81,12 @@ function setPath<T extends object>(obj: T, path: string, value: unknown): T {
     const key = keys[i];
     const next = cursor[key];
     if (next === undefined || next === null || typeof next !== "object") {
-      if (process.env.NODE_ENV !== "production") {
-        console.warn(`[hearthStore] setPath: invalid path "${path}" at "${key}"`);
-      }
-      return obj;
+      // Auto-create the intermediate. Empty object so the next iteration
+      // can keep traversing.
+      cursor[key] = {};
+    } else {
+      cursor[key] = { ...(next as Record<string, unknown>) };
     }
-    cursor[key] = { ...(next as Record<string, unknown>) };
     cursor = cursor[key] as Record<string, unknown>;
   }
 

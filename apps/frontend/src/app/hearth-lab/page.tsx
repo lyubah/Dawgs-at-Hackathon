@@ -30,6 +30,7 @@ const DEEP_FOCUS_PROFILE: MoodProfile = {
     },
     promptForGen:
       "instrumental lo-fi, 65 BPM, sparse harmonic content, warm rhodes and analog pads, gentle vinyl crackle",
+    genre: "lofi",
   },
   visual: {
     sceneId: "forest_cabin",
@@ -90,6 +91,7 @@ const DEEP_FOCUS_PROFILE: MoodProfile = {
     },
   ],
   evolution: { phase: "ramp" },
+  params: {},
 };
 
 const WIND_DOWN_PROFILE: MoodProfile = {
@@ -108,6 +110,7 @@ const WIND_DOWN_PROFILE: MoodProfile = {
     },
     promptForGen:
       "slow ambient pads, warm piano accents, 56 BPM, gentle and reflective, no percussion",
+    genre: "ambient",
   },
   visual: {
     sceneId: "warm_bedroom",
@@ -163,6 +166,7 @@ const WIND_DOWN_PROFILE: MoodProfile = {
     },
   ],
   evolution: { phase: "wind_down" },
+  params: {},
 };
 
 export default function HearthLabPage() {

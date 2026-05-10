@@ -103,16 +103,16 @@ def regenerate_mood_profile(
     reason: str,
     state: Annotated[Any, InjectedState],
 ) -> Command:
-    """F-08 mic-drop: emit a fresh MoodProfile reflecting a mood shift.
+    """F-08 mic-drop / channel A regen: emit a FRESH MoodProfile.
 
-    The new profile's lever ids will be disjoint from the current
-    profile's — this is enforced both via the system prompt and via a
-    defensive fallback in ``architect.regenerate_for_reason``. The Lever
-    Card animation reads as a category change, not a value tweak.
+    Full reconsideration. May shift genre, swap scene, rebuild lever set
+    (different ids), rewrite Lyria prompt. The new profile's lever ids
+    will be disjoint from the current profile's — enforced via prompt and
+    defensive fallback in ``architect.regenerate_for_reason``.
 
     Use when the user message starts with ``"Regenerate the room:"`` —
     that's the frontend's signal that an outOfBoundsAt lever has been
-    sustained for >3s (F-07).
+    sustained for >3s (F-07) OR an explicit user request.
 
     Args:
         reason: Short explanation of what triggered the regen (e.g.
@@ -129,6 +129,37 @@ def regenerate_mood_profile(
     )
 
 
+@tool
+def refresh_music(
+    new_prompt: str,
+    state: Annotated[Any, InjectedState],
+) -> Command:
+    """Channel B regen: KEEP genre, KEEP levers, KEEP scene — only swap
+    ``music.promptForGen``.
+
+    Cheap sibling of ``regenerate_mood_profile``. The frontend's music
+    watcher detects promptForGen changed and fetches a fresh Lyria clip;
+    everything else (lever set, scene, params) stays put. Use when the
+    user wants a fresh track in the same vibe — '/refresh music',
+    'something else like this', 'one more in this genre'.
+
+    The model is responsible for crafting a meaningfully different prompt
+    (vary at least one adjective or instrument). Identical prompts
+    cache-hit and replay the same clip.
+
+    Args:
+        new_prompt: Fresh Lyria prompt in the SAME genre as the current
+            profile. Always instrumental, includes 'seamless loop', avoids
+            brand names. Vary the wording from the current promptForGen.
+    """
+    current = _profile_from_state(state)
+    new_music = current.music.model_copy(update={"promptForGen": new_prompt})
+    new_profile = current.model_copy(update={"music": new_music})
+    return Command(
+        update={"profile": new_profile.model_dump(mode="json")},
+    )
+
+
 def make_hearth_backend_tools() -> list[Any]:
     """Return the Hearth backend tool list for ``runtime.build_graph``.
 
@@ -136,11 +167,12 @@ def make_hearth_backend_tools() -> list[Any]:
     (e.g. Notion MCP tools for the legacy lead-triage runtime). For
     Hearth-only deployments, this is the entire backend tool surface.
     """
-    return [classify_mood_for_goal, regenerate_mood_profile]
+    return [classify_mood_for_goal, regenerate_mood_profile, refresh_music]
 
 
 __all__ = [
     "classify_mood_for_goal",
     "regenerate_mood_profile",
+    "refresh_music",
     "make_hearth_backend_tools",
 ]

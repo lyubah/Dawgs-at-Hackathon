@@ -157,11 +157,12 @@ def _flat_schema_doc() -> str:
         '    "durationMin": int\n'
         "  },\n"
         '  "music": {\n'
+        '    "genre": string,                  // YOUR FIRST DECISION — drives everything else\n'
         '    "bpm": number,\n'
         '    "intensity": number in [0, 1],\n'
         '    "valence": number in [-1, 1],\n'
         '    "aux": { "brownNoise": number in [0,1], "rain": number in [0,1] },\n'
-        '    "promptForGen": string\n'
+        '    "promptForGen": string             // genre-coherent Lyria prompt\n'
         "  },\n"
         '  "visual": {\n'
         '    "sceneId": "forest_cabin" | "warm_bedroom",\n'
@@ -175,8 +176,9 @@ def _flat_schema_doc() -> str:
         '      "vignette": number in [0,1]\n'
         "    }\n"
         "  },\n"
-        '  "levers": Lever[]  // 4-6 entries\n'
-        '  "evolution": { "phase": "ramp" | "sustain" | "wind_down" }\n'
+        '  "levers": Lever[]  // 4-6 entries — genre-native palette\n'
+        '  "evolution": { "phase": "ramp" | "sustain" | "wind_down" },\n'
+        '  "params": object                    // OPEN-ENDED bag for invented controls. Empty {} OK.\n'
         "}\n\n"
         "Lever shape:\n"
         "{\n"
@@ -184,7 +186,7 @@ def _flat_schema_doc() -> str:
         '  "label": string,\n'
         '  "kind": "slider" | "segmented" | "toggle",\n'
         '  "description": string (optional),\n'
-        '  "bindTo": string (dot-path into MoodProfile),\n'
+        '  "bindTo": string (dot-path; may target params.<name> for invented controls),\n'
         '  "range": { "min": number, "max": number, "default": number, "step": number (optional) }   // sliders only\n'
         '  "options": [{ "value": string, "label": string }]                                          // segmented only\n'
         '  "outOfBoundsAt": { "lo": number (optional), "hi": number (optional) }                      // optional; declare on exactly one lever\n'

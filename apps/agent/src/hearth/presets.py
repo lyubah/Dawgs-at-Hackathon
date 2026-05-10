@@ -49,6 +49,7 @@ DEEP_FOCUS_PRESET: MoodProfile = MoodProfile(
             "warm rhodes and analog pads, gentle vinyl crackle, "
             "contemplative and focused, no drums in the foreground"
         ),
+        genre="lofi",
     ),
     visual=Visual(
         sceneId="forest_cabin",
@@ -130,6 +131,7 @@ WIND_DOWN_PRESET: MoodProfile = MoodProfile(
             "slow reverb tails, warm and contemplative, melancholy but tender, "
             "no percussion"
         ),
+        genre="ambient",
     ),
     visual=Visual(
         sceneId="warm_bedroom",

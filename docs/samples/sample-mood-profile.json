@@ -13,7 +13,8 @@
       "brownNoise": 0.0,
       "rain": 0.4
     },
-    "promptForGen": "instrumental lo-fi, 65 BPM, sparse harmonic content, warm rhodes and analog pads, gentle vinyl crackle, contemplative and focused, no drums in the foreground"
+    "promptForGen": "instrumental lo-fi, 65 BPM, sparse harmonic content, warm rhodes and analog pads, gentle vinyl crackle, contemplative and focused, no drums in the foreground",
+    "genre": "lofi"
   },
   "visual": {
     "sceneId": "forest_cabin",
@@ -75,5 +76,6 @@
   ],
   "evolution": {
     "phase": "ramp"
-  }
+  },
+  "params": {}
 }
