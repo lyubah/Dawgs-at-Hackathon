@@ -16,6 +16,7 @@ apps/agent/.env
 postgres-data
 redis-data
 .DS_Store
+.tmp/
 
 # LangGraph dev runtime state (per-session checkpoint cache)
 apps/agent/.langgraph_api/

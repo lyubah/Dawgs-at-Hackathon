@@ -23,12 +23,14 @@
     "dev:bff": "npm run dev --workspace bff",
     "dev:agent": "cd apps/agent && py -3 -m uv run langgraph dev --port 8133 --no-browser",
     "dev:mcp": "npm run dev --workspace mcp",
+    "dev:claude-mcp": "npm run dev --workspace claude-mcp",
     "install:agent": "cd apps/agent && py -3 -m uv sync",
     "install:mcp": "npm install --workspace mcp",
     "postinstall": "npm run install:agent",
     "build": "npm run build --workspace frontend",
     "start": "npm run start --workspace frontend",
-    "lint": "npm run lint --workspace frontend"
+    "lint": "npm run lint --workspace frontend",
+    "build:claude-mcp": "npm run build --workspace claude-mcp"
   },
   "devDependencies": {
     "concurrently": "^9.2.1"

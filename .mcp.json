@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "hearth-demo-launcher": {
+      "command": "npm",
+      "args": ["run", "dev:claude-mcp"]
+    }
+  }
+}
