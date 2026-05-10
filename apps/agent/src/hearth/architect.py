@@ -176,20 +176,30 @@ def _flat_schema_doc() -> str:
         '      "vignette": number in [0,1]\n'
         "    }\n"
         "  },\n"
-        '  "levers": Lever[]  // 4-6 entries — genre-native palette\n'
+        '  "levers": Lever[]  // 5-7 entries — universal-4-patch + extras\n'
         '  "evolution": { "phase": "ramp" | "sustain" | "wind_down" },\n'
-        '  "params": object                    // OPEN-ENDED bag for invented controls. Empty {} OK.\n'
+        '  "params": object                    // MUST include the 4 patch slots — see PATCH PARAMS\n'
         "}\n\n"
+        "PATCH PARAMS (mandatory in every profile — these ARE the audio\n"
+        "engine's interface; skip them and the room sounds dry and lever\n"
+        "drags do nothing audible):\n"
+        '  params.pace   ∈ [0,1]   // playbackRate. 0.5 = 1.0× (no shift).\n'
+        '  params.warmth ∈ [0,1]   // low-pass filter. 0=clean, 1=blanket.\n'
+        '  params.space  ∈ [0,1]   // reverb wet. 0=dry, 1=hall tail.\n'
+        '  params.energy ∈ [0,1]   // drive/saturation depth.\n'
+        "Always emit one slider lever per slot, labeled in genre vocabulary.\n\n"
         "Lever shape:\n"
         "{\n"
         '  "id": snake_case string,\n'
         '  "label": string,\n'
         '  "kind": "slider" | "segmented" | "toggle",\n'
+        '  "tier": "patch" | "refresh" | "regen" (optional; default patch for\n'
+        "           params.* / music.aux.* / visual.* bindings),\n"
         '  "description": string (optional),\n'
         '  "bindTo": string (dot-path; may target params.<name> for invented controls),\n'
         '  "range": { "min": number, "max": number, "default": number, "step": number (optional) }   // sliders only\n'
         '  "options": [{ "value": string, "label": string }]                                          // segmented only\n'
-        '  "outOfBoundsAt": { "lo": number (optional), "hi": number (optional) }                      // optional; declare on exactly one lever\n'
+        '  "outOfBoundsAt": { "lo": number (optional), "hi": number (optional) }                      // optional; declare on exactly one lever (the regen trapdoor — usually the pace lever)\n'
         "}\n"
     )
 

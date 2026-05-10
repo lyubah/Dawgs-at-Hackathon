@@ -1,13 +1,51 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
-import { Lever } from "@/lib/hearth/schema";
+import { Lever, LeverTier } from "@/lib/hearth/schema";
 import { LeverSegmented } from "@/components/hearth/lever-card/LeverSegmented";
 import { LeverSlider } from "@/components/hearth/lever-card/LeverSlider";
 import { LeverToggle } from "@/components/hearth/lever-card/LeverToggle";
 
 export type LeverValue = number | string | boolean;
 export type LeverValueMap = Record<string, LeverValue | undefined>;
+
+/**
+ * Cost class of a lever drag — drives the tiny indicator dot in the corner
+ * of each module so the user knows what their drag will cost before they
+ * commit. Inferred from `bindTo` when `lever.tier` is omitted: `params.*`
+ * and `music.aux.*` and `visual.*` patch the playing audio/visuals;
+ * `music.promptForGen` triggers a Lyria refresh; an `outOfBoundsAt` arms
+ * the regen trapdoor regardless of inferred tier.
+ */
+function inferTier(lever: Lever): LeverTier {
+  if (lever.tier) return lever.tier;
+  if (lever.bindTo === "music.promptForGen") return "refresh";
+  if (
+    lever.bindTo.startsWith("params.") ||
+    lever.bindTo.startsWith("music.aux.") ||
+    lever.bindTo.startsWith("visual.")
+  ) {
+    return "patch";
+  }
+  // Fields like music.bpm, music.intensity sit between patch and refresh:
+  // call them refresh until the prompt-coupling story is firmer.
+  return "refresh";
+}
+
+const TIER_DOT: Record<LeverTier, { color: string; title: string }> = {
+  patch: {
+    color: "#85ecce",
+    title: "Patch — instant. Reshapes audio without reloading.",
+  },
+  refresh: {
+    color: "#e7c887",
+    title: "Refresh — fetches a new clip in the same genre.",
+  },
+  regen: {
+    color: "#f08c7c",
+    title: "Regen — sustained drag past the edge swaps the room.",
+  },
+};
 
 type LeverCardProps = {
   title: string;
@@ -172,8 +210,25 @@ function ModuleFrame({ lever, index, children }: ModuleFrameProps) {
       <Bracket className="right-2 top-2" rotate={90} />
       <Bracket className="right-2 bottom-2" rotate={180} />
       <Bracket className="left-2 bottom-2" rotate={270} />
+      <TierDot tier={inferTier(lever)} />
       <div className="relative">{children}</div>
     </motion.div>
+  );
+}
+
+function TierDot({ tier }: { tier: LeverTier }) {
+  const { color, title } = TIER_DOT[tier];
+  return (
+    <span
+      aria-label={title}
+      title={title}
+      className="pointer-events-none absolute right-3 top-3 z-10 flex h-1.5 w-1.5 items-center justify-center"
+    >
+      <span
+        className="h-1.5 w-1.5 rounded-full"
+        style={{ backgroundColor: color, boxShadow: `0 0 6px ${color}aa` }}
+      />
+    </span>
   );
 }
 
@@ -220,7 +275,15 @@ function LeverControl({ lever, value, onValueChange }: LeverControlProps) {
     );
   }
 
-  const boolValue = typeof value === "boolean" ? value : false;
+  // A toggle may bind to a numeric path (e.g. music.aux.rain ∈ [0,1]). The
+  // store coerces bool → 0/1 on write; here we coerce non-zero / "1" / "true"
+  // back to true on read so the toggle's UI state matches the audio state.
+  const boolValue =
+    typeof value === "boolean"
+      ? value
+      : typeof value === "number"
+        ? value > 0
+        : value === "true" || value === "1";
   return (
     <LeverToggle
       lever={lever}

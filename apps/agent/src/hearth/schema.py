@@ -31,6 +31,22 @@ regen target. Adding more scenes is straightforward but out of MVP scope."""
 
 LeverKind = Literal["slider", "segmented", "toggle"]
 
+LeverTier = Literal["patch", "refresh", "regen"]
+"""Cost class of a lever drag. Drives both UX (visible indicator) and
+behavior (which side of the regen pipeline fires).
+
+- ``patch`` — instant, client-side audio-graph mutation (warmth, space, pace,
+  energy, aux beds, scene uniforms). No Lyria call. ~16ms feedback.
+- ``refresh`` — same genre, fresh clip via ``refresh_music`` (Lyria). The
+  lever's drag updates ``music.promptForGen`` indirectly. ~2-5s crossfade.
+- ``regen`` — has an ``outOfBoundsAt``; sustained out-of-bounds triggers a
+  full ``regenerate_mood_profile`` (new genre, new lever set). ~3-7s.
+
+Optional: when omitted, the frontend infers from ``bindTo`` (params.* and
+music.aux.* default to patch; music.promptForGen → refresh; presence of
+outOfBoundsAt → regen). Setting it explicitly keeps the indicator stable
+across regens."""
+
 
 # ------------------------ lever sub-types ----------------------------------
 
@@ -73,6 +89,9 @@ class Lever(BaseModel):
     """User-visible. Plain language."""
 
     kind: LeverKind
+
+    tier: Optional[LeverTier] = None
+    """Cost class — see ``LeverTier``. Optional; inferred from bindTo when None."""
 
     description: Optional[str] = None
     """Optional hover tooltip. One short sentence."""
@@ -199,6 +218,7 @@ __all__ = [
     "GoalKind",
     "SceneId",
     "LeverKind",
+    "LeverTier",
     "LeverRange",
     "LeverOption",
     "OutOfBoundsAt",

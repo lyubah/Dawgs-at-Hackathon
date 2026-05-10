@@ -63,53 +63,46 @@ DEEP_FOCUS_PRESET: MoodProfile = MoodProfile(
             vignette=0.5,
         ),
     ),
+    # Three-lever core: Tempo (segmented, snaps without zipper noise),
+    # Tape (smooth slider), Rain (clean on/off toggle). Every other patch
+    # dimension stays available to the agent via params.* but is off-card.
     levers=[
         Lever(
             id="tempo",
             label="Tempo",
-            kind="slider",
-            description="How fast the music moves. Lower for thinking, higher for rhythm.",
-            bindTo="music.bpm",
-            range=LeverRange(min=50, max=80, default=65, step=1),
-            outOfBoundsAt=OutOfBoundsAt(lo=55),  # crossing this triggers F-08
-        ),
-        Lever(
-            id="rain_intensity",
-            label="Rain",
-            kind="slider",
-            description="From clear sky to thunderstorm.",
-            bindTo="music.aux.rain",
-            range=LeverRange(min=0, max=1, default=0.4),
-        ),
-        Lever(
-            id="harmonic_density",
-            label="Harmonic density",
-            kind="slider",
-            description="Drone-like sparseness to jazzy density.",
-            bindTo="music.intensity",
-            range=LeverRange(min=0, max=1, default=0.3),
-        ),
-        Lever(
-            id="brown_noise",
-            label="Brown noise",
-            kind="slider",
-            description="Low-frequency masking layer for distractions.",
-            bindTo="music.aux.brownNoise",
-            range=LeverRange(min=0, max=1, default=0.0),
-        ),
-        Lever(
-            id="window_view",
-            label="Window view",
             kind="segmented",
-            description="What you see through the cabin window.",
-            bindTo="visual.sceneId",
+            tier="patch",
+            description="Slide the pace down or up — same track, just a different stride.",
+            bindTo="params.pace",
             options=[
-                LeverOption(value="forest_cabin", label="Forest"),
-                LeverOption(value="warm_bedroom", label="Cabin"),
+                LeverOption(value="0.2", label="Slower"),
+                LeverOption(value="0.5", label="Steady"),
+                LeverOption(value="0.8", label="Faster"),
             ],
+        ),
+        Lever(
+            id="tape",
+            label="Tape",
+            kind="slider",
+            tier="patch",
+            description="Cassette warmth — clean studio to soft blanket.",
+            bindTo="params.warmth",
+            range=LeverRange(min=0, max=1, default=0.4, step=0.01),
+        ),
+        Lever(
+            id="rain",
+            label="Rain",
+            kind="toggle",
+            tier="patch",
+            description="Steady rain on the cabin roof — on or off.",
+            bindTo="music.aux.rain",
         ),
     ],
     evolution=Evolution(phase="ramp"),
+    # Seed all four patch params so AudioEngine starts with a clean room
+    # even when only three are exposed as levers. space + energy sit at
+    # subtle defaults; the agent can re-seed them on regen.
+    params={"pace": 0.5, "warmth": 0.4, "space": 0.2, "energy": 0.0},
 )
 
 
@@ -145,49 +138,42 @@ WIND_DOWN_PRESET: MoodProfile = MoodProfile(
             vignette=0.7,
         ),
     ),
+    # Same three-lever core, ambient vocabulary. Pace defaults a touch
+    # lower so "Steady" already breathes more slowly than focus.
     levers=[
-        Lever(
-            id="valence",
-            label="Valence",
-            kind="slider",
-            description="Melancholy through tender to hopeful.",
-            bindTo="music.valence",
-            range=LeverRange(min=-1, max=1, default=-0.2),
-        ),
-        Lever(
-            id="pad_density",
-            label="Pad density",
-            kind="slider",
-            description="Sparse held notes to lush evolving pads.",
-            bindTo="music.intensity",
-            range=LeverRange(min=0, max=1, default=0.6),
-        ),
-        Lever(
-            id="candlelight_flicker",
-            label="Candlelight flicker",
-            kind="slider",
-            description="Steady glow to lively flicker.",
-            bindTo="visual.uniforms.motionRate",
-            range=LeverRange(min=0, max=1, default=0.5),
-        ),
         Lever(
             id="breathing_pace",
             label="Breathing pace",
-            kind="slider",
-            description="Slow inhale-exhale rhythm. Match your breath to the room.",
-            bindTo="music.bpm",
-            range=LeverRange(min=48, max=60, default=54, step=1),
+            kind="segmented",
+            tier="patch",
+            description="Slow the room's breath, hold steady, or wake it gently.",
+            bindTo="params.pace",
+            options=[
+                LeverOption(value="0.15", label="Slower"),
+                LeverOption(value="0.4", label="Steady"),
+                LeverOption(value="0.65", label="Faster"),
+            ],
         ),
         Lever(
-            id="ambient_warmth",
-            label="Ambient warmth",
+            id="hearthlight",
+            label="Hearthlight",
             kind="slider",
-            description="Cool ember to warm hearthlight.",
-            bindTo="visual.uniforms.colorTempK",
-            range=LeverRange(min=2700, max=3500, default=2900, step=50),
+            tier="patch",
+            description="Bright glass to deep ember warmth.",
+            bindTo="params.warmth",
+            range=LeverRange(min=0, max=1, default=0.7, step=0.01),
+        ),
+        Lever(
+            id="rain",
+            label="Rain",
+            kind="toggle",
+            tier="patch",
+            description="Soft rain outside the window — on or off.",
+            bindTo="music.aux.rain",
         ),
     ],
     evolution=Evolution(phase="wind_down"),
+    params={"pace": 0.4, "warmth": 0.7, "space": 0.55, "energy": 0.0},
 )
 
 

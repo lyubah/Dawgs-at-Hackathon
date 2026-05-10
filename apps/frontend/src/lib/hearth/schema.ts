@@ -28,6 +28,20 @@ export type SceneId = z.infer<typeof SceneId>;
 export const LeverKind = z.enum(["slider", "segmented", "toggle"]);
 export type LeverKind = z.infer<typeof LeverKind>;
 
+/**
+ * Cost class of a lever drag. Mirrors `LeverTier` in schema.py.
+ * - `patch` — instant client-side audio-graph mutation (~16ms). No Lyria call.
+ * - `refresh` — same genre, fresh clip via Lyria (~2-5s crossfade).
+ * - `regen` — sustained out-of-bounds triggers full profile regen (~3-7s).
+ *
+ * Optional. When omitted, the UI infers from `bindTo`:
+ *  - `params.*` / `music.aux.*` / `visual.uniforms.*` → patch
+ *  - `music.promptForGen` → refresh
+ *  - any lever with `outOfBoundsAt` → regen
+ */
+export const LeverTier = z.enum(["patch", "refresh", "regen"]);
+export type LeverTier = z.infer<typeof LeverTier>;
+
 // ------------------------ lever sub-types ----------------------------------
 
 export const LeverRange = z.object({
@@ -66,6 +80,7 @@ export const Lever = z.object({
   id: z.string(),
   label: z.string(),
   kind: LeverKind,
+  tier: LeverTier.optional(),
   description: z.string().optional(),
   bindTo: z.string(),
   range: LeverRange.optional(),

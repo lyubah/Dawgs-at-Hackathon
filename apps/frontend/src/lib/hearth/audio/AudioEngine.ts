@@ -45,6 +45,27 @@ export class AudioEngine {
   private gains = new Map<ClipId, Tone.Gain>();
 
   /**
+   * Music FX bus — every music player (prebaked + generative) routes through
+   * this chain so the patch-tier levers reshape the playing audio in real
+   * time. Aux beds (rain, brown noise) bypass it so they stay clean
+   * regardless of the music's filter.
+   *
+   *   musicBus → filter (warmth) → reverb (space) → out
+   *
+   * Distortion was tried for an "energy" lever and removed: setting
+   * Tone.Distortion.distortion rebuilds the waveshaper curve internally on
+   * every change, which clicks audibly during a drag. Saturation belongs
+   * upstream of the patch tier — bake it into the prebaked clips or the
+   * Lyria prompt instead.
+   *
+   * playbackRate (pace) is per-player and ramped (not snapped) so segmented
+   * tempo flips slide rather than glitch.
+   */
+  private musicBus: Tone.Gain | null = null;
+  private fxFilter: Tone.Filter | null = null;
+  private fxReverb: Tone.Reverb | null = null;
+
+  /**
    * Generative bed — populated by loadGenerative() at runtime with a fresh
    * Lyria clip. When active, it replaces the prebaked focus_* beds so the
    * agent's regenerated music actually plays instead of just rebalancing
@@ -59,12 +80,28 @@ export class AudioEngine {
     await Tone.start();
     this.initialized = true;
 
+    // Build the music FX chain BEFORE loading clips so each player can
+    // connect to the bus directly. Aux beds (rain, brownNoise) skip this
+    // chain — they go to destination raw.
+    this.musicBus = new Tone.Gain(1);
+    this.fxFilter = new Tone.Filter({ frequency: 18000, type: "lowpass", rolloff: -12 });
+    this.fxReverb = new Tone.Reverb({ decay: 2.4, preDelay: 0.02, wet: 0 });
+    // Reverb generates its impulse response async; await so the first
+    // playback isn't dry. ~30ms one-time cost, fine inside init().
+    await this.fxReverb.generate();
+    this.musicBus.chain(this.fxFilter, this.fxReverb, Tone.getDestination());
+
     await Promise.allSettled(
       (Object.keys(CLIP_URLS) as ClipId[]).map(async (id) => {
         const player = new Tone.Player({ loop: true, autostart: false });
         const gain = new Tone.Gain(0);
         player.connect(gain);
-        gain.toDestination();
+        // Music goes through the FX bus; aux beds stay clean.
+        if (isMusicId(id)) {
+          gain.connect(this.musicBus!);
+        } else {
+          gain.toDestination();
+        }
         try {
           await player.load(CLIP_URLS[id]);
           this.clips.set(id, player);
@@ -125,6 +162,57 @@ export class AudioEngine {
     // ---- ambient bus: layered on top of whichever music is playing ----
     this.ramp("rain", rain, 0.25);
     this.ramp("brownNoise", brownNoise, 0.25);
+
+    // ---- patch FX: read params.warmth / .space / .pace / .energy ----
+    // These are the universal patch-tier levers. Every genre's lever set
+    // labels them differently ("Tape", "Hearthlight", "Filter") but they
+    // all bind to the same params slots and reshape the playing audio
+    // here without a Lyria round-trip.
+    this.applyPatchParams(profile);
+  }
+
+  /**
+   * Apply the universal patch-tier params to the FX chain. Cheap — runs
+   * on every profile change. Ramps are sized so drags feel continuous and
+   * segmented snaps slide musically rather than click.
+   *
+   * Three knobs, deliberately:
+   *   - warmth → filter cutoff   (smooth slider, 120 ms ramp)
+   *   - space  → reverb wet      (smooth slider or off-stage default)
+   *   - pace   → playbackRate    (segmented Slower/Steady/Faster, 350 ms slide)
+   *
+   * `space` is kept available for the agent to drive even when no lever
+   * exposes it — it's part of the room's character and can be set on regen.
+   */
+  private applyPatchParams(profile: MoodProfile): void {
+    const p = profile.params ?? {};
+    const warmth = clamp01(asNumber(p.warmth, 0));
+    const space = clamp01(asNumber(p.space, 0));
+    // pace defaults to 0.5 → playbackRate 1.0 (no shift).
+    const pace = clamp01(asNumber(p.pace, 0.5));
+
+    // warmth → lowpass cutoff. 0 = clean (18 kHz), 1 = blanket (~1.2 kHz).
+    if (this.fxFilter) {
+      const cutoffHz = 18000 / Math.pow(15, warmth);
+      this.fxFilter.frequency.rampTo(cutoffHz, 0.12);
+    }
+
+    // space → reverb wet. Cap at 0.55 so dry stays present even at max.
+    if (this.fxReverb) {
+      this.fxReverb.wet.rampTo(space * 0.55, 0.15);
+    }
+
+    // pace → playbackRate on every music player. ±12% range maps from
+    // pace 0..1 → 0.88..1.12. At 0.5 = 1.0 (no shift). Ramped so flipping
+    // the segmented Tempo control slides up/down musically (~350 ms).
+    const rate = 0.88 + 0.24 * pace;
+    for (const id of MUSIC_IDS) {
+      const player = this.clips.get(id);
+      if (player) rampPlaybackRate(player, rate, 0.35);
+    }
+    if (this.generativePlayer) {
+      rampPlaybackRate(this.generativePlayer, rate, 0.35);
+    }
   }
 
   /**
@@ -141,11 +229,16 @@ export class AudioEngine {
     }
 
     // Build the new player + gain chain BEFORE swapping so we can fail
-    // closed (no audio gap) if the load throws.
+    // closed (no audio gap) if the load throws. Generative beds go through
+    // the FX bus so the patch tier reshapes them live, same as prebaked.
     const nextPlayer = new Tone.Player({ loop: true, autostart: false });
     const nextGain = new Tone.Gain(0);
     nextPlayer.connect(nextGain);
-    nextGain.toDestination();
+    if (this.musicBus) {
+      nextGain.connect(this.musicBus);
+    } else {
+      nextGain.toDestination();
+    }
 
     try {
       await nextPlayer.load(url);
@@ -216,6 +309,12 @@ export class AudioEngine {
     this.generativePlayer = null;
     this.generativeGain = null;
     this.generativeActive = false;
+    if (this.fxReverb) this.fxReverb.dispose();
+    if (this.fxFilter) this.fxFilter.dispose();
+    if (this.musicBus) this.musicBus.dispose();
+    this.fxReverb = null;
+    this.fxFilter = null;
+    this.musicBus = null;
     this.initialized = false;
     this.started = false;
   }
@@ -243,6 +342,39 @@ export class AudioEngine {
 
 function clamp01(value: number) {
   return Math.max(0, Math.min(1, value));
+}
+
+function asNumber(value: unknown, fallback: number): number {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  if (typeof value === "boolean") return value ? 1 : 0;
+  return fallback;
+}
+
+function isMusicId(id: ClipId): id is MusicId {
+  return (
+    id === "focusLow" || id === "focusMid" || id === "focusHigh" || id === "windDown"
+  );
+}
+
+/**
+ * Ramp a Tone.Player's playbackRate to a target value over `seconds`.
+ * Newer Tone (v14+) exposes playbackRate as a Param with .rampTo;
+ * older builds expose it as a plain number. Defensive in both directions.
+ */
+function rampPlaybackRate(player: Tone.Player, target: number, seconds: number): void {
+  const rateParam = player.playbackRate as unknown;
+  if (
+    rateParam &&
+    typeof (rateParam as { rampTo?: unknown }).rampTo === "function"
+  ) {
+    (rateParam as { rampTo: (v: number, t: number) => void }).rampTo(target, seconds);
+    return;
+  }
+  player.playbackRate = target;
 }
 
 /**
