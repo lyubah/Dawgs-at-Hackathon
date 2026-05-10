@@ -241,26 +241,23 @@ function HearthInner() {
                 )}
                 <button
                   type="button"
-                  disabled={!agent}
                   onClick={() => {
-                    if (!agent) return;
-                    const id =
-                      typeof crypto !== "undefined" && "randomUUID" in crypto
-                        ? crypto.randomUUID()
-                        : `regen-${Date.now()}`;
-                    agent.addMessage({
-                      id,
-                      role: "user",
-                      content:
-                        "Regenerate the room: user requested fresh music — vary the prompt and emit a new MoodProfile.",
-                    });
-                    void copilotkit
-                      .runAgent({ agent })
-                      .catch((err: unknown) => {
-                        console.error("[Hearth] regen-music runAgent failed", err);
-                      });
+                    // Don't go through the chat: nudging music.promptForGen
+                    // is enough to wake the musicRegen watcher, which fetches
+                    // a fresh Lyria clip and crossfades it. Strip any prior
+                    // variation tag so we don't accumulate "(take 1234)
+                    // (take 5678)" suffixes; then append a new seeded tag so
+                    // the watcher's string-equality check actually fires.
+                    const current =
+                      useHearthStore.getState().profile.music.promptForGen ?? "";
+                    const stripped = current.replace(/\s*·\s*take\s+\d+\s*$/i, "").trim();
+                    const seed = Math.floor(Math.random() * 9000) + 1000;
+                    setLeverValue(
+                      "music.promptForGen",
+                      `${stripped} · take ${seed}`,
+                    );
                   }}
-                  className="rounded-full border border-fuchsia-400/40 bg-fuchsia-950/40 px-5 py-2.5 font-mono text-[11px] uppercase tracking-[0.18em] text-fuchsia-100 backdrop-blur-xl transition-colors hover:border-fuchsia-300 hover:text-fuchsia-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="rounded-full border border-[#e7c887]/40 bg-[#100f16]/60 px-5 py-2.5 font-mono text-[11px] uppercase tracking-[0.18em] text-[#f5ebcd] backdrop-blur-xl transition-colors hover:border-[#e7c887] hover:text-[#fff7d9]"
                 >
                   ↻ Regenerate music
                 </button>
