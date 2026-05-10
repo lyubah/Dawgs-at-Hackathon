@@ -11,6 +11,15 @@ type ClipId =
   | "rain"
   | "brownNoise";
 
+type MusicId = "focusLow" | "focusMid" | "focusHigh" | "windDown";
+
+const MUSIC_IDS: readonly MusicId[] = [
+  "focusLow",
+  "focusMid",
+  "focusHigh",
+  "windDown",
+] as const;
+
 type SfxId = "leverGrab" | "cardMaterialize" | "regenChime";
 
 const CLIP_URLS: Record<ClipId, string> = {
@@ -91,23 +100,29 @@ export class AudioEngine {
     const intensity = clamp01(profile.music.intensity);
     const rain = clamp01(profile.music.aux.rain);
     const brownNoise = clamp01(profile.music.aux.brownNoise);
-    const windDownMode = profile.goal.kind === "wind_down";
 
-    // When the generative bed is loaded, it owns the music slot — silence
-    // the prebaked focus_* beds so we hear the freshly-generated track and
-    // not a stack of both.
-    const focusLow =
-      this.generativeActive || windDownMode ? 0 : triangleAt(intensity, 0.08);
-    const focusMid =
-      this.generativeActive || windDownMode ? 0 : triangleAt(intensity, 0.5);
-    const focusHigh =
-      this.generativeActive || windDownMode ? 0 : triangleAt(intensity, 0.92);
-    const windDown = windDownMode ? 1 : 0;
+    // ---- music slot: exactly one bed plays at a time ----
+    // Levers all converge on a SINGLE music output. Selection priority:
+    //   generative (Lyria) > windDown > focusLow|Mid|High by intensity bucket
+    // Every other music clip ramps to silence so we never get two beds
+    // overlapping. Intensity also drives the master music gain inside the
+    // selected clip so dragging the intensity dial is audibly continuous.
+    const selected: MusicId | "generative" = this.generativeActive
+      ? "generative"
+      : selectMusicClip(profile);
+    const musicMasterGain = this.generativeActive ? 1 : 0.55 + 0.45 * intensity;
+    const isWindDown = selected === "windDown";
 
-    this.ramp("focusLow", focusLow, 0.25);
-    this.ramp("focusMid", focusMid, 0.25);
-    this.ramp("focusHigh", focusHigh, 0.25);
-    this.ramp("windDown", windDown, windDownMode ? 2.0 : 1.2);
+    for (const id of MUSIC_IDS) {
+      const target =
+        selected === "generative" || id !== selected ? 0 : musicMasterGain;
+      // Wind-down clips get a longer fade in/out so the room transition
+      // doesn't feel jolting; everything else is snappy.
+      const fade = isWindDown && id === "windDown" ? 2.0 : id === selected ? 0.4 : 0.8;
+      this.ramp(id, target, fade);
+    }
+
+    // ---- ambient bus: layered on top of whichever music is playing ----
     this.ramp("rain", rain, 0.25);
     this.ramp("brownNoise", brownNoise, 0.25);
   }
@@ -230,10 +245,19 @@ function clamp01(value: number) {
   return Math.max(0, Math.min(1, value));
 }
 
-function triangleAt(value: number, peak: number): number {
-  const width = 0.45;
-  const delta = Math.abs(value - peak);
-  if (delta >= width) return 0;
-  return 1 - delta / width;
+/**
+ * Pick the single prebaked music clip that best matches the profile.
+ *
+ * Wind-down goal always wins — it's the calm sleep bed and shouldn't be
+ * overridden by intensity. Otherwise the focus stack is selected by
+ * intensity bucket. Hard cutovers between buckets (instead of crossfaded
+ * overlaps) so we never play two beds at once.
+ */
+function selectMusicClip(profile: MoodProfile): MusicId {
+  if (profile.goal.kind === "wind_down") return "windDown";
+  const i = clamp01(profile.music.intensity);
+  if (i < 0.34) return "focusLow";
+  if (i < 0.67) return "focusMid";
+  return "focusHigh";
 }
 
