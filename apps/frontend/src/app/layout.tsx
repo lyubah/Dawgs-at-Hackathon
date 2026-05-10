@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { Plus_Jakarta_Sans, Spline_Sans_Mono } from "next/font/google";
+import { Plus_Jakarta_Sans, Spline_Sans_Mono, Fraunces } from "next/font/google";
 import { CopilotKitProviderShell } from "@/components/copilot/CopilotKitProviderShell";
 import "./globals.css";
 // v2 owns its own stylesheet. Do NOT import @copilotkit/react-ui/styles.css —
@@ -21,6 +21,13 @@ const splineMono = Spline_Sans_Mono({
   variable: "--font-mono",
 });
 
+const fraunces = Fraunces({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-display",
+  axes: ["opsz", "SOFT"],
+});
+
 export const metadata: Metadata = {
   title: "AG-UI Canvas | CopilotKit Hackathon Starter",
   description:
@@ -33,8 +40,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${jakarta.variable} ${splineMono.variable}`}>
-      <body className={`${jakarta.variable} ${splineMono.variable} subpixel-antialiased`}>
+    <html lang="en" className={`${jakarta.variable} ${splineMono.variable} ${fraunces.variable}`}>
+      <body className={`${jakarta.variable} ${splineMono.variable} ${fraunces.variable} subpixel-antialiased`}>
         <CopilotKitProviderShell>{children}</CopilotKitProviderShell>
       </body>
     </html>

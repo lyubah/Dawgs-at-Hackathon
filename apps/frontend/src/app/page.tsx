@@ -187,30 +187,78 @@ function HearthInner() {
       )}
 
       {stage === "room" && (
-        <main className="grid min-h-screen gap-4 bg-[#060914] p-4 lg:grid-cols-[1fr_380px]">
-          <HearthRoom
-            sceneId={profile.visual.sceneId}
-            uniforms={profile.visual.uniforms}
-            overlayTitle={`${profile.goal.kind.replace("_", " ")} · ${profile.goal.durationMin} min`}
-          />
-          <div className="flex flex-col gap-4">
-            <LeverCard
-              title={`For ${profile.goal.kind.replace("_", " ")}`}
-              note="Push a lever past its comfort range and the room regenerates."
-              levers={profile.levers}
-              values={leverValues}
-              transitionKey={leverFingerprint}
-              onValueChange={handleLeverChange}
+        <main
+          // Right-rail (400px) reserved for the always-visible chat panel.
+          // Within the playable area the room is a full-bleed backdrop and the
+          // console floats centered above it instead of being pinned right.
+          className="relative min-h-screen overflow-hidden bg-[#060914]"
+          style={{ marginRight: 400 }}
+        >
+          <div className="absolute inset-0">
+            <HearthRoom
+              sceneId={profile.visual.sceneId}
+              uniforms={profile.visual.uniforms}
+              overlayTitle={`${profile.goal.kind.replace("_", " ")} · ${profile.goal.durationMin} min`}
+              className="h-full rounded-none border-0"
             />
-            {!audioReady && (
-              <button
-                type="button"
-                onClick={enableAudio}
-                className="rounded-full border border-[#d9c48f]/50 bg-[#100f16]/72 px-4 py-2 font-mono text-xs uppercase tracking-[0.14em] text-[#f5ebcd] backdrop-blur-xl"
-              >
-                Enable audio
-              </button>
-            )}
+          </div>
+
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 bottom-0 h-2/3"
+            style={{
+              background:
+                "linear-gradient(180deg,transparent 0%,rgba(6,9,20,0.55) 45%,rgba(6,9,20,0.92) 100%)",
+            }}
+          />
+
+          <div className="relative z-10 flex min-h-screen flex-col items-center justify-end px-4 pb-8 pt-6">
+            <div className="w-full max-w-[860px]">
+              <LeverCard
+                title={`For ${profile.goal.kind.replace("_", " ")}`}
+                note="Push a lever past its comfort range and the room regenerates."
+                levers={profile.levers}
+                values={leverValues}
+                transitionKey={leverFingerprint}
+                onValueChange={handleLeverChange}
+              />
+              <div className="mt-4 flex flex-wrap justify-center gap-2">
+                {!audioReady && (
+                  <button
+                    type="button"
+                    onClick={enableAudio}
+                    className="rounded-full border border-[#e7c887]/50 bg-[#100f16]/72 px-5 py-2.5 font-mono text-[11px] uppercase tracking-[0.18em] text-[#f5ebcd] backdrop-blur-xl transition-colors hover:border-[#e7c887] hover:text-[#fff7d9]"
+                  >
+                    ▶ Enable audio
+                  </button>
+                )}
+                <button
+                  type="button"
+                  disabled={!agent}
+                  onClick={() => {
+                    if (!agent) return;
+                    const id =
+                      typeof crypto !== "undefined" && "randomUUID" in crypto
+                        ? crypto.randomUUID()
+                        : `regen-${Date.now()}`;
+                    agent.addMessage({
+                      id,
+                      role: "user",
+                      content:
+                        "Regenerate the room: user requested fresh music — vary the prompt and emit a new MoodProfile.",
+                    });
+                    void copilotkit
+                      .runAgent({ agent })
+                      .catch((err: unknown) => {
+                        console.error("[Hearth] regen-music runAgent failed", err);
+                      });
+                  }}
+                  className="rounded-full border border-fuchsia-400/40 bg-fuchsia-950/40 px-5 py-2.5 font-mono text-[11px] uppercase tracking-[0.18em] text-fuchsia-100 backdrop-blur-xl transition-colors hover:border-fuchsia-300 hover:text-fuchsia-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  ↻ Regenerate music
+                </button>
+              </div>
+            </div>
           </div>
         </main>
       )}
