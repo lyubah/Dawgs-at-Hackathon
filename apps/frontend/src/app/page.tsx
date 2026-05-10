@@ -239,15 +239,29 @@ function HearthInner() {
                     ▶ Enable audio
                   </button>
                 )}
+                {/*
+                  Two regen modes, surfaced as distinct affordances:
+
+                  ↻ Refresh music — Mode 1 (cheap path). Same genre, same
+                    levers, same scene. We bypass the agent entirely and
+                    just nudge profile.music.promptForGen with a varied
+                    seed; the musicRegen watcher refetches a fresh Lyria
+                    clip and crossfades it. No chat noise.
+
+                  ✦ New direction — Mode 2 (heavy path). Sends a short
+                    "Regenerate the room: …" message through the chat,
+                    which the agent matches to channel A in prompts.py:202
+                    and answers with a fresh MoodProfile (potentially new
+                    genre + new lever set + new scene). The LeverCard
+                    crossfades to the new modules via leverFingerprint.
+
+                  Free-form chat ("more like this", "switch to jazz", etc.)
+                  still works — the agent's prompt routes between the two
+                  channels naturally.
+                */}
                 <button
                   type="button"
                   onClick={() => {
-                    // Don't go through the chat: nudging music.promptForGen
-                    // is enough to wake the musicRegen watcher, which fetches
-                    // a fresh Lyria clip and crossfades it. Strip any prior
-                    // variation tag so we don't accumulate "(take 1234)
-                    // (take 5678)" suffixes; then append a new seeded tag so
-                    // the watcher's string-equality check actually fires.
                     const current =
                       useHearthStore.getState().profile.music.promptForGen ?? "";
                     const stripped = current.replace(/\s*·\s*take\s+\d+\s*$/i, "").trim();
@@ -258,8 +272,34 @@ function HearthInner() {
                     );
                   }}
                   className="rounded-full border border-[#e7c887]/40 bg-[#100f16]/60 px-5 py-2.5 font-mono text-[11px] uppercase tracking-[0.18em] text-[#f5ebcd] backdrop-blur-xl transition-colors hover:border-[#e7c887] hover:text-[#fff7d9]"
+                  title="Same vibe, new take. Just regenerates the music."
                 >
-                  ↻ Regenerate music
+                  ↻ Refresh music
+                </button>
+                <button
+                  type="button"
+                  disabled={!agent}
+                  onClick={() => {
+                    if (!agent) return;
+                    const id =
+                      typeof crypto !== "undefined" && "randomUUID" in crypto
+                        ? crypto.randomUUID()
+                        : `regen-${Date.now()}`;
+                    agent.addMessage({
+                      id,
+                      role: "user",
+                      content: "Regenerate the room: take it somewhere new.",
+                    });
+                    void copilotkit
+                      .runAgent({ agent })
+                      .catch((err: unknown) => {
+                        console.error("[Hearth] new-direction runAgent failed", err);
+                      });
+                  }}
+                  className="rounded-full border border-[#bec2ff]/35 bg-[#1a1a2e]/60 px-5 py-2.5 font-mono text-[11px] uppercase tracking-[0.18em] text-[#bec2ff] backdrop-blur-xl transition-colors hover:border-[#bec2ff]/70 hover:text-[#e0e2ff] disabled:opacity-40 disabled:cursor-not-allowed"
+                  title="New genre, new levers, new scene. Asks the agent to start over."
+                >
+                  ✦ New direction
                 </button>
               </div>
             </div>
